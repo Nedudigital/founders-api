@@ -3,6 +3,21 @@
 const SHOPIFY_ADMIN_URL = `https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/2024-10/graphql.json`;
 const ADMIN_TOKEN = process.env.SHOPIFY_ADMIN_API_TOKEN;
 
+// ---- CORS HEADERS ----
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',              // or lock to 'https://nuravaskincare.com'
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+// Preflight handler (for browser requests)
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: corsHeaders,
+  });
+}
+
 // Helper to call Shopify Admin GraphQL
 async function callShopify(query, variables) {
   const res = await fetch(SHOPIFY_ADMIN_URL, {
@@ -21,6 +36,17 @@ async function callShopify(query, variables) {
   return json;
 }
 
+// Helper to return JSON with CORS
+function jsonResponse(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json',
+    },
+  });
+}
+
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -36,9 +62,9 @@ export async function POST(req) {
     } = body;
 
     if (!customer_id || !email) {
-      return new Response(
-        JSON.stringify({ ok: false, message: 'Missing customer_id or email' }),
-        { status: 400 }
+      return jsonResponse(
+        { ok: false, message: 'Missing customer_id or email' },
+        400
       );
     }
 
@@ -90,21 +116,21 @@ export async function POST(req) {
     const mfErrors = mfResp?.data?.customerUpdate?.userErrors || [];
     if (mfErrors.length) {
       console.error('Metafield userErrors:', mfErrors);
-      return new Response(
-        JSON.stringify({
+      return jsonResponse(
+        {
           ok: false,
           message: mfErrors.map((e) => e.message).join(', '),
-        }),
-        { status: 500 }
+        },
+        500
       );
     }
 
-    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    return jsonResponse({ ok: true }, 200);
   } catch (err) {
     console.error('API error /founders-apply:', err);
-    return new Response(
-      JSON.stringify({ ok: false, message: 'Internal server error' }),
-      { status: 500 }
+    return jsonResponse(
+      { ok: false, message: 'Internal server error' },
+      500
     );
   }
 }
