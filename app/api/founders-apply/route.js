@@ -5,12 +5,12 @@ const ADMIN_TOKEN = process.env.SHOPIFY_ADMIN_API_TOKEN;
 
 // ---- CORS HEADERS ----
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',              // or lock to 'https://nuravaskincare.com'
+  'Access-Control-Allow-Origin': '*',              // tighten later if you want
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-// Preflight handler (for browser requests)
+// Preflight handler
 export async function OPTIONS() {
   return new Response(null, {
     status: 204,
@@ -70,6 +70,9 @@ export async function POST(req) {
 
     const customerGid = `gid://shopify/Customer/${customer_id}`;
 
+    // Get today's date as YYYY-MM-DD
+    const today = new Date().toISOString().split('T')[0];
+
     // 1) Add a customer tag
     const tagsMutation = `
       mutation AddFoundersTag($id: ID!) {
@@ -85,20 +88,21 @@ export async function POST(req) {
       console.error('Tag userErrors:', tagErrors);
     }
 
-    // 2) Update customer metafields
+    // 2) Update customer metafields with your specific values
     const metafieldsMutation = `
       mutation UpdateFoundersMetafields(
         $id: ID!,
-        $orderName: String!
+        $orderName: String!,
+        $applicationDate: String!
       ) {
         customerUpdate(input: {
           id: $id,
           metafields: [
             { namespace: "custom", key: "application_data", type: "single_line_text_field", value: "yes" },
-            { namespace: "custom", key: "application_submitted_dates", type: "single_line_text_field", value: "yes" },
-            { namespace: "custom", key: "priority_founder_member", type: "single_line_text_field", value: "yes" },
-            { namespace: "custom", key: "founder_status", type: "single_line_text_field", value: "yes" },
-            { namespace: "custom", key: "founders_applied", type: "single_line_text_field", value: "yes" },
+            { namespace: "custom", key: "application_submitted_dates", type: "single_line_text_field", value: $applicationDate },
+            { namespace: "custom", key: "priority_founder_member", type: "single_line_text_field", value: "true" },
+            { namespace: "custom", key: "founder_status", type: "single_line_text_field", value: "pending" },
+            { namespace: "custom", key: "founders_applied", type: "single_line_text_field", value: "true" },
             { namespace: "custom", key: "last_order_name", type: "single_line_text_field", value: $orderName }
           ]
         }) {
@@ -111,6 +115,7 @@ export async function POST(req) {
     const mfResp = await callShopify(metafieldsMutation, {
       id: customerGid,
       orderName: order_number || 'Unknown',
+      applicationDate: today,
     });
 
     const mfErrors = mfResp?.data?.customerUpdate?.userErrors || [];
