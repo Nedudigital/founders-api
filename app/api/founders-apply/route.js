@@ -76,7 +76,7 @@ export async function POST(req) {
     // 1) Add a customer tag
     const tagsMutation = `
       mutation AddFoundersTag($id: ID!) {
-        tagsAdd(id: $id, tags: ["founders_applicants"]) {
+        tagsAdd(id: $id, tags: ["founders_applicants","founders_pending"]) {
           userErrors { field message }
         }
       }
